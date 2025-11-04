@@ -1,0 +1,38 @@
+{
+  "curves": [
+    {
+      "label": "测试曲线1",
+      "color": "#FF6384",
+      "visible": true,
+      "data": [
+        { "x": 10, "y": 92.5 },
+        { "x": 20, "y": 95.2 },
+        { "x": 30, "y": 96.8 }
+      ]
+    },
+    {
+      "label": "测试曲线2",
+      "color": "#36A2EB",
+      "visible": true,
+      "data": [
+        { "x": 15, "y": 91.0 },
+        { "x": 25, "y": 94.5 },
+        { "x": 35, "y": 97.0 }
+      ]
+    }
+  ],
+  "settings": {
+    "title": "测试导入配置",
+    "xAxisLabel": "功率 (kW)",
+    "yAxisLabel": "效率 (%)",
+    "xMin": "",
+    "xMax": "",
+    "yMin": "0",
+    "yMax": "100",
+    "smoothCurves": false,
+    "fillArea": false,
+    "showPoints": true,
+    "highlightMaxEfficiency": true,
+    "referenceLine": ""
+  }
+}

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导入功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>移动端导入功能测试页面</h1>
+    
+    <div class="test-section">
+        <h2>测试目标</h2>
+        <ul>
+            <li>验证文件导入按钮在移动设备上可以正常触发文件选择器</li>
+            <li>验证粘贴JSON导入功能</li>
+            <li>验证Toast通知系统</li>
+            <li>验证重复导入同一文件</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>测试步骤</h2>
+        <ol>
+            <li>在移动设备或桌面浏览器中打开 <a href="index.html">index.html</a></li>
+            <li>点击"📂 导入配置JSON"按钮，应该弹出文件选择器</li>
+            <li>选择 <code>test-config.json</code> 文件，应该显示成功提示</li>
+            <li>再次点击"📂 导入配置JSON"并选择同一文件，应该仍然能成功导入</li>
+            <li>点击"📋 粘贴JSON导入"按钮，应该展开文本框</li>
+            <li>粘贴以下测试JSON到文本框中：</li>
+        </ol>
+        
+        <textarea id="testJson" rows="15" style="width: 100%; font-family: monospace; padding: 10px;">
+{
+  "curves": [
+    {
+      "label": "粘贴导入测试曲线",
+      "color": "#FF6384",
+      "visible": true,
+      "data": [
+        { "x": 5, "y": 90.0 },
+        { "x": 10, "y": 93.5 },
+        { "x": 15, "y": 95.8 },
+        { "x": 20, "y": 97.2 }
+      ]
+    }
+  ],
+  "settings": {
+    "title": "粘贴导入测试",
+    "xAxisLabel": "功率 (kW)",
+    "yAxisLabel": "效率 (%)",
+    "yMin": "0",
+    "yMax": "100"
+  }
+}
+        </textarea>
+        
+        <ol start="7">
+            <li>点击"📥 导入"按钮，应该成功导入并显示Toast提示</li>
+            <li>尝试导入格式错误的JSON，应该显示错误提示且不破坏当前配置</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>预期结果</h2>
+        <div class="status pass">
+            ✓ Android Chrome 可以稳定触发文件选择器<br>
+            ✓ 选择文件后成功导入并显示绿色成功Toast<br>
+            ✓ 重复导入同一文件正常工作<br>
+            ✓ 粘贴导入功能正常工作<br>
+            ✓ 错误JSON显示红色错误Toast且不影响当前状态<br>
+            ✓ Toast通知3秒后自动消失<br>
+            ✓ 其他功能（导出、曲线管理等）无回归
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>技术实现细节</h2>
+        <ul>
+            <li><strong>文件输入改进：</strong>使用 <code>&lt;label for="inputId"&gt;</code> 代替 JavaScript 触发</li>
+            <li><strong>视觉隐藏：</strong><code>position: absolute; width: 1px; height: 1px; opacity: 0;</code></li>
+            <li><strong>MIME类型：</strong><code>accept="application/json,.json"</code></li>
+            <li><strong>值重置：</strong>导入后 <code>input.value = ''</code> 允许重复导入</li>
+            <li><strong>Toast系统：</strong>非阻塞式通知，支持 success/error/info 类型</li>
+            <li><strong>错误恢复：</strong>导入失败时自动恢复之前的配置</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>快速链接</h2>
+        <ul>
+            <li><a href="index.html">打开主应用</a></li>
+            <li><a href="test-config.json" download>下载测试配置文件</a></li>
+            <li><a href="MOBILE_IMPORT_FIX.md">查看修复文档</a></li>
+        </ul>
+    </div>
+
+    <script>
+        // 复制JSON到剪贴板
+        document.getElementById('testJson').addEventListener('click', function() {
+            this.select();
+            try {
+                document.execCommand('copy');
+                alert('JSON已复制到剪贴板！');
+            } catch (err) {
+                console.log('无法自动复制，请手动复制');
+            }
+        });
+    </script>
+</body>
+</html>

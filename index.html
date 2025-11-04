@@ -183,6 +183,10 @@
             cursor: pointer;
             font-size: 14px;
             transition: background-color 0.3s;
+            display: inline-block;
+            text-align: center;
+            text-decoration: none;
+            user-select: none;
         }
 
         .button:hover {
@@ -341,13 +345,59 @@
 
         .file-input-wrapper {
             position: relative;
-            overflow: hidden;
             display: inline-block;
         }
 
         .file-input-wrapper input[type=file] {
             position: absolute;
-            left: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 12px 24px;
+            border-radius: 6px;
+            box-shadow: var(--card-shadow);
+            z-index: 1000;
+            animation: slideUp 0.3s ease-out;
+            max-width: 90%;
+            text-align: center;
+        }
+        
+        .toast.success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .toast.error {
+            background: #dc3545;
+            color: white;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .drag-drop-hint {
+                display: none;
+            }
         }
 
         .point-input {
@@ -461,9 +511,10 @@
                         <button class="button" onclick="exportSVG()">📈 导出SVG</button>
                         <button class="button" onclick="exportConfig()">💾 导出配置JSON</button>
                         <div class="file-input-wrapper">
-                            <button class="button">📂 导入配置JSON</button>
-                            <input type="file" id="importConfig" accept=".json" onchange="importConfig(event)">
+                            <input type="file" id="importConfigFile" accept="application/json,.json" onchange="importConfigFromFile(event)">
+                            <label for="importConfigFile" class="button">📂 导入配置JSON</label>
                         </div>
+                        <button class="button" onclick="showPasteImportDialog()">📋 粘贴JSON导入</button>
                         <button class="button" onclick="loadFromLocalStorage()">🔄 恢复上次配置</button>
                     </div>
                 </div>
@@ -471,6 +522,18 @@
                 <div class="card">
                     <h2>最大效率汇总</h2>
                     <div id="maxEfficiencySummary"></div>
+                </div>
+
+                <div class="card" id="pasteImportSection" style="display: none;">
+                    <h2>粘贴JSON导入</h2>
+                    <div class="form-group">
+                        <label>将配置JSON粘贴到下方文本框：</label>
+                        <textarea id="pasteImportTextarea" rows="10" placeholder='粘贴完整的JSON配置内容，例如：&#10;{&#10;  "curves": [...],&#10;  "settings": {...}&#10;}'></textarea>
+                    </div>
+                    <div class="button-group">
+                        <button class="button" onclick="importConfigFromPaste()">📥 导入</button>
+                        <button class="button" onclick="hidePasteImportDialog()">取消</button>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -1189,8 +1252,27 @@
             URL.revokeObjectURL(url);
         }
 
-        // 导入配置
-        function importConfig(event) {
+        // 显示Toast通知
+        function showToast(message, type = 'info') {
+            // 移除现有的toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 从文件导入配置
+        function importConfigFromFile(event) {
             const file = event.target.files[0];
             if (!file) return;
             
@@ -1199,13 +1281,55 @@
                 try {
                     const config = JSON.parse(e.target.result);
                     loadConfiguration(config);
-                    alert('配置导入成功！');
+                    showToast('✓ 配置导入成功！', 'success');
                 } catch (error) {
-                    alert('配置文件格式错误：' + error.message);
+                    console.error('Import error:', error);
+                    showToast('✗ 配置文件格式错误：' + error.message, 'error');
                 }
             };
+            reader.onerror = function() {
+                showToast('✗ 文件读取失败，请重试', 'error');
+            };
             reader.readAsText(file);
+            
+            // 重置input值，确保同一文件可以再次导入
             event.target.value = '';
+        }
+
+        // 显示粘贴导入对话框
+        function showPasteImportDialog() {
+            const section = document.getElementById('pasteImportSection');
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            document.getElementById('pasteImportTextarea').focus();
+        }
+
+        // 隐藏粘贴导入对话框
+        function hidePasteImportDialog() {
+            const section = document.getElementById('pasteImportSection');
+            section.style.display = 'none';
+            document.getElementById('pasteImportTextarea').value = '';
+        }
+
+        // 从粘贴文本导入配置
+        function importConfigFromPaste() {
+            const textarea = document.getElementById('pasteImportTextarea');
+            const jsonText = textarea.value.trim();
+            
+            if (!jsonText) {
+                showToast('✗ 请粘贴JSON配置内容', 'error');
+                return;
+            }
+            
+            try {
+                const config = JSON.parse(jsonText);
+                loadConfiguration(config);
+                showToast('✓ 配置导入成功！', 'success');
+                hidePasteImportDialog();
+            } catch (error) {
+                console.error('Parse error:', error);
+                showToast('✗ JSON格式错误：' + error.message, 'error');
+            }
         }
 
         // 获取当前配置
@@ -1243,16 +1367,30 @@
 
         // 加载配置
         function loadConfiguration(config) {
-            curves = config.curves || [];
+            // 验证配置格式
+            if (!config || typeof config !== 'object') {
+                throw new Error('配置格式无效');
+            }
             
-            // 限制曲线数量至MAX_CURVES，超出则截断并提示
-            if (curves.length > MAX_CURVES) {
-                const originalCount = curves.length;
-                curves = curves.slice(0, MAX_CURVES);
-                console.warn(`配置文件包含 ${originalCount} 条曲线，已截断至 ${MAX_CURVES} 条`);
-                setTimeout(() => {
-                    alert(`配置文件包含 ${originalCount} 条曲线，已自动截断至前 ${MAX_CURVES} 条`);
-                }, 100);
+            // 备份当前状态，以便出错时恢复
+            const backupCurves = JSON.parse(JSON.stringify(curves));
+            
+            try {
+                curves = config.curves || [];
+                
+                // 限制曲线数量至MAX_CURVES，超出则截断并提示
+                if (curves.length > MAX_CURVES) {
+                    const originalCount = curves.length;
+                    curves = curves.slice(0, MAX_CURVES);
+                    console.warn(`配置文件包含 ${originalCount} 条曲线，已截断至 ${MAX_CURVES} 条`);
+                    setTimeout(() => {
+                        showToast(`配置包含 ${originalCount} 条曲线，已截断至前 ${MAX_CURVES} 条`, 'info');
+                    }, 100);
+                }
+            } catch (error) {
+                // 恢复备份
+                curves = backupCurves;
+                throw error;
             }
             
             if (config.settings) {
@@ -1328,12 +1466,13 @@
                 try {
                     const config = JSON.parse(saved);
                     loadConfiguration(config);
-                    alert('配置恢复成功！');
+                    showToast('✓ 配置恢复成功！', 'success');
                 } catch (e) {
-                    alert('配置恢复失败：' + e.message);
+                    console.error('LocalStorage load error:', e);
+                    showToast('✗ 配置恢复失败：' + e.message, 'error');
                 }
             } else {
-                alert('没有找到保存的配置');
+                showToast('没有找到保存的配置', 'info');
             }
         }
 
