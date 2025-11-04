@@ -144,6 +144,7 @@
 
         .form-group input[type="text"],
         .form-group input[type="number"],
+        .form-group select,
         .form-group textarea {
             width: 100%;
             padding: 8px;
@@ -152,6 +153,10 @@
             background: var(--input-bg);
             color: var(--text-primary);
             font-size: 14px;
+        }
+        
+        .form-group select {
+            cursor: pointer;
         }
 
         .form-group textarea {
@@ -513,17 +518,79 @@
                             标记最大效率点
                         </label>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>最大点形状</label>
+                            <select id="maxPointShape" onchange="updateChart()">
+                                <option value="circle">圆形</option>
+                                <option value="triangle">三角形</option>
+                                <option value="rect">矩形</option>
+                                <option value="rectRot">旋转矩形</option>
+                                <option value="star">星形</option>
+                                <option value="cross">十字</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>最大点大小</label>
+                            <input type="number" id="maxPointSize" value="6" min="3" max="10" step="1" onchange="updateChart()">
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>效率参考线 (%)</label>
                         <input type="number" id="referenceLine" placeholder="例如: 97.5" step="0.1" onchange="updateChart()">
+                    </div>
+                    
+                    <h3 class="collapsible collapsed" onclick="toggleCollapsible(this)" style="font-size: 16px; margin-top: 20px; cursor: pointer;">字体大小设置</h3>
+                    <div class="collapsible-content collapsed">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>图表主标题 (px)</label>
+                                <input type="number" id="fontSizeTitle" value="18" min="8" max="32" step="1" onchange="updateChart()">
+                            </div>
+                            <div class="form-group">
+                                <label>轴标题 (px)</label>
+                                <input type="number" id="fontSizeAxisTitle" value="14" min="8" max="24" step="1" onchange="updateChart()">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>轴刻度值 (px)</label>
+                                <input type="number" id="fontSizeAxisTicks" value="12" min="8" max="20" step="1" onchange="updateChart()">
+                            </div>
+                            <div class="form-group">
+                                <label>图例文字 (px)</label>
+                                <input type="number" id="fontSizeLegend" value="12" min="8" max="20" step="1" onchange="updateChart()">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>提示文字 (px)</label>
+                            <input type="number" id="fontSizeTooltip" value="12" min="8" max="20" step="1" onchange="updateChart()">
+                        </div>
+                    </div>
+                    
+                    <h3 class="collapsible collapsed" onclick="toggleCollapsible(this)" style="font-size: 16px; margin-top: 20px; cursor: pointer;">坐标轴刻度间隔</h3>
+                    <div class="collapsible-content collapsed">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>X轴最小刻度间隔</label>
+                                <input type="number" id="xStepSize" placeholder="自动计算" step="0.1" onchange="updateChart()">
+                            </div>
+                            <div class="form-group">
+                                <label>Y轴最小刻度间隔</label>
+                                <input type="number" id="yStepSize" placeholder="自动计算" step="0.1" onchange="updateChart()">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="settings-panel card">
                 <h2>曲线数据管理</h2>
+                <div class="button-group" style="margin-bottom: 15px;">
+                    <button class="button" onclick="toggleAllCurvePanels()" id="toggleAllBtn">📁 折叠全部</button>
+                    <button class="button" onclick="addCurve()" id="addCurveBtn">➕ 添加曲线</button>
+                </div>
                 <div id="curvesContainer"></div>
-                <button class="button" onclick="addCurve()" id="addCurveBtn">➕ 添加曲线</button>
             </div>
         </div>
     </div>
@@ -848,6 +915,7 @@
                             display: true,
                             labels: {
                                 color: getComputedStyle(document.body).getPropertyValue('--text-primary'),
+                                font: { size: 12 },
                                 filter: function(item, chart) {
                                     // 不显示最大效率点的图例项
                                     return !item.text.includes('最大效率');
@@ -855,6 +923,7 @@
                             }
                         },
                         tooltip: {
+                            bodyFont: { size: 12 },
                             callbacks: {
                                 label: function(context) {
                                     let label = `${context.dataset.label}: 功率=${context.parsed.x}kW, 效率=${context.parsed.y}%`;
@@ -873,9 +942,11 @@
                             title: {
                                 display: true,
                                 text: 'DC输入功率 (kW)',
+                                font: { size: 14 },
                                 color: getComputedStyle(document.body).getPropertyValue('--text-primary')
                             },
                             ticks: {
+                                font: { size: 12 },
                                 color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
                             },
                             grid: {
@@ -886,11 +957,13 @@
                             title: {
                                 display: true,
                                 text: '效率 (%)',
+                                font: { size: 14 },
                                 color: getComputedStyle(document.body).getPropertyValue('--text-primary')
                             },
                             min: 0,
                             max: 100,
                             ticks: {
+                                font: { size: 12 },
                                 color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
                             },
                             grid: {
@@ -953,23 +1026,24 @@
             
             // 添加最大效率点标记
             if (highlightMaxEfficiency) {
+                // 获取最大点配置
+                const maxPointShape = document.getElementById('maxPointShape').value;
+                const maxPointSize = parseInt(document.getElementById('maxPointSize').value) || 6;
+                
                 curves.forEach(curve => {
                     if (curve.visible && curve.data.length > 0) {
                         const maxPoint = findMaxEfficiencyPoint(curve);
                         if (maxPoint) {
-                            // 使用白色边框增强可见性
-                            const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
-                            const contrastBorder = isDarkMode ? '#ffffff' : '#000000';
-                            
+                            // 标记不带边框，颜色同曲线
                             datasets.push({
                                 label: `${curve.label} - 最大效率`,
                                 data: [maxPoint],
-                                borderColor: contrastBorder,
+                                borderColor: curve.color,
                                 backgroundColor: curve.color,
-                                borderWidth: 2,
-                                pointRadius: 9,
-                                pointHoverRadius: 11,
-                                pointStyle: 'circle',
+                                borderWidth: 0,
+                                pointRadius: maxPointSize,
+                                pointHoverRadius: maxPointSize + 2,
+                                pointStyle: maxPointShape,
                                 showLine: false,
                                 order: -1
                             });
@@ -995,6 +1069,28 @@
             chart.options.scales.x.max = xMax ? parseFloat(xMax) : undefined;
             chart.options.scales.y.min = yMin ? parseFloat(yMin) : undefined;
             chart.options.scales.y.max = yMax ? parseFloat(yMax) : undefined;
+            
+            // 更新坐标轴刻度间隔
+            const xStepSize = document.getElementById('xStepSize').value;
+            const yStepSize = document.getElementById('yStepSize').value;
+            
+            chart.options.scales.x.ticks.stepSize = xStepSize ? parseFloat(xStepSize) : undefined;
+            chart.options.scales.y.ticks.stepSize = yStepSize ? parseFloat(yStepSize) : undefined;
+            
+            // 更新字体大小
+            const fontSizeTitle = parseInt(document.getElementById('fontSizeTitle').value) || 18;
+            const fontSizeAxisTitle = parseInt(document.getElementById('fontSizeAxisTitle').value) || 14;
+            const fontSizeAxisTicks = parseInt(document.getElementById('fontSizeAxisTicks').value) || 12;
+            const fontSizeLegend = parseInt(document.getElementById('fontSizeLegend').value) || 12;
+            const fontSizeTooltip = parseInt(document.getElementById('fontSizeTooltip').value) || 12;
+            
+            chart.options.plugins.title.font.size = fontSizeTitle;
+            chart.options.plugins.legend.labels.font.size = fontSizeLegend;
+            chart.options.plugins.tooltip.bodyFont.size = fontSizeTooltip;
+            chart.options.scales.x.title.font.size = fontSizeAxisTitle;
+            chart.options.scales.y.title.font.size = fontSizeAxisTitle;
+            chart.options.scales.x.ticks.font.size = fontSizeAxisTicks;
+            chart.options.scales.y.ticks.font.size = fontSizeAxisTicks;
             
             // 更新颜色（主题切换）
             const textColor = getComputedStyle(document.body).getPropertyValue('--text-primary').trim();
@@ -1105,7 +1201,19 @@
                     fillArea: document.getElementById('fillArea').checked,
                     showPoints: document.getElementById('showPoints').checked,
                     highlightMaxEfficiency: document.getElementById('highlightMaxEfficiency').checked,
-                    referenceLine: document.getElementById('referenceLine').value
+                    referenceLine: document.getElementById('referenceLine').value,
+                    // 最大点配置
+                    maxPointShape: document.getElementById('maxPointShape').value,
+                    maxPointSize: document.getElementById('maxPointSize').value,
+                    // 字体大小配置
+                    fontSizeTitle: document.getElementById('fontSizeTitle').value,
+                    fontSizeAxisTitle: document.getElementById('fontSizeAxisTitle').value,
+                    fontSizeAxisTicks: document.getElementById('fontSizeAxisTicks').value,
+                    fontSizeLegend: document.getElementById('fontSizeLegend').value,
+                    fontSizeTooltip: document.getElementById('fontSizeTooltip').value,
+                    // 坐标轴刻度间隔
+                    xStepSize: document.getElementById('xStepSize').value,
+                    yStepSize: document.getElementById('yStepSize').value
                 }
             };
         }
@@ -1127,6 +1235,39 @@
                 document.getElementById('showPoints').checked = config.settings.showPoints !== undefined ? config.settings.showPoints : true;
                 document.getElementById('highlightMaxEfficiency').checked = config.settings.highlightMaxEfficiency !== undefined ? config.settings.highlightMaxEfficiency : true;
                 document.getElementById('referenceLine').value = config.settings.referenceLine || '';
+                
+                // 加载最大点配置
+                if (config.settings.maxPointShape) {
+                    document.getElementById('maxPointShape').value = config.settings.maxPointShape;
+                }
+                if (config.settings.maxPointSize) {
+                    document.getElementById('maxPointSize').value = config.settings.maxPointSize;
+                }
+                
+                // 加载字体大小配置
+                if (config.settings.fontSizeTitle) {
+                    document.getElementById('fontSizeTitle').value = config.settings.fontSizeTitle;
+                }
+                if (config.settings.fontSizeAxisTitle) {
+                    document.getElementById('fontSizeAxisTitle').value = config.settings.fontSizeAxisTitle;
+                }
+                if (config.settings.fontSizeAxisTicks) {
+                    document.getElementById('fontSizeAxisTicks').value = config.settings.fontSizeAxisTicks;
+                }
+                if (config.settings.fontSizeLegend) {
+                    document.getElementById('fontSizeLegend').value = config.settings.fontSizeLegend;
+                }
+                if (config.settings.fontSizeTooltip) {
+                    document.getElementById('fontSizeTooltip').value = config.settings.fontSizeTooltip;
+                }
+                
+                // 加载坐标轴刻度间隔
+                if (config.settings.xStepSize) {
+                    document.getElementById('xStepSize').value = config.settings.xStepSize;
+                }
+                if (config.settings.yStepSize) {
+                    document.getElementById('yStepSize').value = config.settings.yStepSize;
+                }
             }
             
             renderCurves();
@@ -1183,6 +1324,38 @@
             if (content && content.classList.contains('collapsible-content')) {
                 content.classList.toggle('collapsed');
             }
+        }
+        
+        // 一键折叠/展开所有曲线面板
+        function toggleAllCurvePanels() {
+            const curvesContainer = document.getElementById('curvesContainer');
+            const allCollapsibles = curvesContainer.querySelectorAll('.collapsible');
+            const toggleBtn = document.getElementById('toggleAllBtn');
+            
+            if (allCollapsibles.length === 0) {
+                return;
+            }
+            
+            // 检查当前状态：如果所有面板都是折叠的，则展开全部；否则折叠全部
+            const allCollapsed = Array.from(allCollapsibles).every(el => el.classList.contains('collapsed'));
+            
+            allCollapsibles.forEach(collapsible => {
+                const content = collapsible.nextElementSibling;
+                if (content && content.classList.contains('collapsible-content')) {
+                    if (allCollapsed) {
+                        // 展开全部
+                        collapsible.classList.remove('collapsed');
+                        content.classList.remove('collapsed');
+                    } else {
+                        // 折叠全部
+                        collapsible.classList.add('collapsed');
+                        content.classList.add('collapsed');
+                    }
+                }
+            });
+            
+            // 更新按钮文本
+            toggleBtn.textContent = allCollapsed ? '📁 折叠全部' : '📂 展开全部';
         }
 
         // 初始化主题
