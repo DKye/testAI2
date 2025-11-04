@@ -411,6 +411,19 @@
             margin-right: 8px;
             vertical-align: middle;
         }
+
+        /* 汇总表容器支持滚动（20条曲线时） */
+        #maxEfficiencySummary {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* 曲线管理区容器优化：20条曲线时支持更好的滚动体验 */
+        #curvesContainer {
+            max-height: calc(80vh - 80px);
+            overflow-y: auto;
+            padding-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -424,7 +437,7 @@
             <h3 class="collapsible" onclick="toggleCollapsible(this)">使用说明</h3>
             <div class="collapsible-content">
                 <ul>
-                    <li><strong>多曲线管理：</strong>最多支持5条曲线，每条曲线可独立设置名称、颜色、显示/隐藏</li>
+                    <li><strong>多曲线管理：</strong>最多支持20条曲线，每条曲线可独立设置名称、颜色、显示/隐藏</li>
                     <li><strong>数据输入：</strong>支持批量粘贴（格式：功率 效率，每行一组）或逐点添加</li>
                     <li><strong>批量粘贴格式：</strong>支持空格、制表符或逗号分隔，如"10 95.5"或"10,95.5"</li>
                     <li><strong>图表设置：</strong>可自定义标题、坐标轴标签、范围、平滑曲线、区域填充等</li>
@@ -599,8 +612,14 @@
         // 数据结构
         let curves = [];
         let chart = null;
-        const MAX_CURVES = 5;
-        const DEFAULT_COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'];
+        const MAX_CURVES = 20;
+        // 20色调色板：色相均匀分布，高饱和度与明度，保证可读性与区分度
+        const DEFAULT_COLORS = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',  // 原有5色
+            '#FF9F40', '#E74C3C', '#2ECC71', '#3498DB', '#9B59B6',  // 橙、红、绿、蓝、紫
+            '#1ABC9C', '#F39C12', '#E67E22', '#16A085', '#8E44AD',  // 青绿、金、深橙、深青、深紫
+            '#27AE60', '#2980B9', '#C0392B', '#D35400', '#7F8C8D'   // 深绿、深蓝、深红、棕橙、灰
+        ];
 
         // 查找曲线的最大效率点
         // 返回最大效率值最大的点，如果有多个并列最大，取功率x最小的点
@@ -913,9 +932,13 @@
                         },
                         legend: {
                             display: true,
+                            position: 'top',
+                            maxHeight: 150,
                             labels: {
                                 color: getComputedStyle(document.body).getPropertyValue('--text-primary'),
                                 font: { size: 12 },
+                                boxWidth: 15,
+                                padding: 8,
                                 filter: function(item, chart) {
                                     // 不显示最大效率点的图例项
                                     return !item.text.includes('最大效率');
@@ -1221,6 +1244,16 @@
         // 加载配置
         function loadConfiguration(config) {
             curves = config.curves || [];
+            
+            // 限制曲线数量至MAX_CURVES，超出则截断并提示
+            if (curves.length > MAX_CURVES) {
+                const originalCount = curves.length;
+                curves = curves.slice(0, MAX_CURVES);
+                console.warn(`配置文件包含 ${originalCount} 条曲线，已截断至 ${MAX_CURVES} 条`);
+                setTimeout(() => {
+                    alert(`配置文件包含 ${originalCount} 条曲线，已自动截断至前 ${MAX_CURVES} 条`);
+                }, 100);
+            }
             
             if (config.settings) {
                 document.getElementById('chartTitle').value = config.settings.title || '功率-效率特性曲线';
