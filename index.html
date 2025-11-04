@@ -260,6 +260,26 @@
             background: var(--input-bg);
         }
 
+        .data-table tr.max-efficiency-row {
+            background: rgba(255, 215, 0, 0.25);
+            font-weight: 600;
+            border-left: 3px solid #FFD700;
+        }
+
+        [data-theme="dark"] .data-table tr.max-efficiency-row {
+            background: rgba(255, 215, 0, 0.15);
+        }
+
+        .data-table tr.max-efficiency-row td {
+            background: transparent;
+            position: relative;
+        }
+
+        .data-table tr.max-efficiency-row td:first-child::before {
+            content: "⭐";
+            margin-right: 5px;
+        }
+
         .instructions {
             background: var(--bg-primary);
             padding: 15px;
@@ -403,7 +423,7 @@
                     <li><strong>数据输入：</strong>支持批量粘贴（格式：功率 效率，每行一组）或逐点添加</li>
                     <li><strong>批量粘贴格式：</strong>支持空格、制表符或逗号分隔，如"10 95.5"或"10,95.5"</li>
                     <li><strong>图表设置：</strong>可自定义标题、坐标轴标签、范围、平滑曲线、区域填充等</li>
-                    <li><strong>最大效率点：</strong>自动识别并高亮显示每条曲线的最大效率点（星形标记），汇总表实时显示所有曲线的最大效率及对应功率</li>
+                    <li><strong>最大效率点：</strong>自动识别每条曲线的最大效率点（并列时选功率最小），图上以曲线同色标记，表格中高亮显示，汇总表实时显示所有曲线的最大效率及对应功率</li>
                     <li><strong>参考线：</strong>可添加效率参考线，如97.5%</li>
                     <li><strong>导出功能：</strong>支持导出PNG、SVG图片及JSON配置文件</li>
                     <li><strong>数据恢复：</strong>配置自动保存到本地，刷新页面后可恢复</li>
@@ -490,7 +510,7 @@
                     <div class="form-group">
                         <label>
                             <input type="checkbox" id="highlightMaxEfficiency" checked onchange="updateChart()">
-                            高亮最大效率点
+                            标记最大效率点
                         </label>
                     </div>
                     <div class="form-group">
@@ -692,9 +712,17 @@
                 return '<p style="color: var(--text-secondary); margin: 10px 0;">暂无数据</p>';
             }
             
+            // 找出最大效率点
+            const curve = curves[curveIndex];
+            const maxPoint = findMaxEfficiencyPoint(curve);
+            
             let html = '<table class="data-table"><thead><tr><th>序号</th><th>功率(kW)</th><th>效率(%)</th><th>操作</th></tr></thead><tbody>';
             data.forEach((point, pointIndex) => {
-                html += `<tr>
+                // 判断是否为最大效率点
+                const isMaxPoint = maxPoint && point.x === maxPoint.x && point.y === maxPoint.y;
+                const rowClass = isMaxPoint ? ' class="max-efficiency-row"' : '';
+                
+                html += `<tr${rowClass}>
                     <td>${pointIndex + 1}</td>
                     <td>${point.x}</td>
                     <td>${point.y}</td>
@@ -819,7 +847,11 @@
                         legend: {
                             display: true,
                             labels: {
-                                color: getComputedStyle(document.body).getPropertyValue('--text-primary')
+                                color: getComputedStyle(document.body).getPropertyValue('--text-primary'),
+                                filter: function(item, chart) {
+                                    // 不显示最大效率点的图例项
+                                    return !item.text.includes('最大效率');
+                                }
                             }
                         },
                         tooltip: {
@@ -919,21 +951,25 @@
                 }
             }
             
-            // 添加最大效率点高亮
+            // 添加最大效率点标记
             if (highlightMaxEfficiency) {
                 curves.forEach(curve => {
                     if (curve.visible && curve.data.length > 0) {
                         const maxPoint = findMaxEfficiencyPoint(curve);
                         if (maxPoint) {
+                            // 使用白色边框增强可见性
+                            const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+                            const contrastBorder = isDarkMode ? '#ffffff' : '#000000';
+                            
                             datasets.push({
                                 label: `${curve.label} - 最大效率`,
                                 data: [maxPoint],
-                                borderColor: '#FFD700',
+                                borderColor: contrastBorder,
                                 backgroundColor: curve.color,
-                                borderWidth: 3,
-                                pointRadius: 8,
-                                pointHoverRadius: 10,
-                                pointStyle: 'star',
+                                borderWidth: 2,
+                                pointRadius: 9,
+                                pointHoverRadius: 11,
+                                pointStyle: 'circle',
                                 showLine: false,
                                 order: -1
                             });
