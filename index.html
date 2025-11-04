@@ -348,6 +348,44 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-secondary);
         }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .summary-table th,
+        .summary-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .summary-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .summary-table td {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .summary-table tr.hidden-curve {
+            opacity: 0.5;
+        }
+
+        .curve-color-indicator {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -365,6 +403,7 @@
                     <li><strong>数据输入：</strong>支持批量粘贴（格式：功率 效率，每行一组）或逐点添加</li>
                     <li><strong>批量粘贴格式：</strong>支持空格、制表符或逗号分隔，如"10 95.5"或"10,95.5"</li>
                     <li><strong>图表设置：</strong>可自定义标题、坐标轴标签、范围、平滑曲线、区域填充等</li>
+                    <li><strong>最大效率点：</strong>自动识别并高亮显示每条曲线的最大效率点（星形标记），汇总表实时显示所有曲线的最大效率及对应功率</li>
                     <li><strong>参考线：</strong>可添加效率参考线，如97.5%</li>
                     <li><strong>导出功能：</strong>支持导出PNG、SVG图片及JSON配置文件</li>
                     <li><strong>数据恢复：</strong>配置自动保存到本地，刷新页面后可恢复</li>
@@ -389,6 +428,11 @@
                         </div>
                         <button class="button" onclick="loadFromLocalStorage()">🔄 恢复上次配置</button>
                     </div>
+                </div>
+
+                <div class="card">
+                    <h2>最大效率汇总</h2>
+                    <div id="maxEfficiencySummary"></div>
                 </div>
 
                 <div class="card">
@@ -444,6 +488,12 @@
                         </label>
                     </div>
                     <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="highlightMaxEfficiency" checked onchange="updateChart()">
+                            高亮最大效率点
+                        </label>
+                    </div>
+                    <div class="form-group">
                         <label>效率参考线 (%)</label>
                         <input type="number" id="referenceLine" placeholder="例如: 97.5" step="0.1" onchange="updateChart()">
                     </div>
@@ -464,6 +514,64 @@
         let chart = null;
         const MAX_CURVES = 5;
         const DEFAULT_COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'];
+
+        // 查找曲线的最大效率点
+        // 返回最大效率值最大的点，如果有多个并列最大，取功率x最小的点
+        function findMaxEfficiencyPoint(curve) {
+            if (!curve.data || curve.data.length === 0) {
+                return null;
+            }
+            
+            let maxPoint = curve.data[0];
+            for (let i = 1; i < curve.data.length; i++) {
+                const point = curve.data[i];
+                if (point.y > maxPoint.y || (point.y === maxPoint.y && point.x < maxPoint.x)) {
+                    maxPoint = point;
+                }
+            }
+            
+            return maxPoint;
+        }
+
+        // 渲染最大效率汇总表
+        function renderMaxEfficiencySummary() {
+            const summaryDiv = document.getElementById('maxEfficiencySummary');
+            
+            if (curves.length === 0) {
+                summaryDiv.innerHTML = '<p style="color: var(--text-secondary); margin: 10px 0;">暂无曲线数据</p>';
+                return;
+            }
+            
+            let html = '<table class="summary-table">';
+            html += '<thead><tr>';
+            html += '<th>曲线名称</th>';
+            html += '<th>最大效率 (%)</th>';
+            html += '<th>对应功率 (kW)</th>';
+            html += '</tr></thead>';
+            html += '<tbody>';
+            
+            curves.forEach(curve => {
+                const maxPoint = findMaxEfficiencyPoint(curve);
+                const isHidden = !curve.visible;
+                const rowClass = isHidden ? 'hidden-curve' : '';
+                
+                html += `<tr class="${rowClass}">`;
+                html += `<td><span class="curve-color-indicator" style="background-color: ${curve.color};"></span>${curve.label}</td>`;
+                
+                if (maxPoint) {
+                    html += `<td>${maxPoint.y.toFixed(2)}</td>`;
+                    html += `<td>${maxPoint.x.toFixed(3)}</td>`;
+                } else {
+                    html += '<td>-</td>';
+                    html += '<td>-</td>';
+                }
+                
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            summaryDiv.innerHTML = html;
+        }
 
         // 初始化
         function init() {
@@ -573,6 +681,9 @@
             
             document.getElementById('addCurveBtn').style.display = 
                 curves.length >= MAX_CURVES ? 'none' : 'block';
+            
+            // 更新最大效率汇总
+            renderMaxEfficiencySummary();
         }
 
         // 渲染数据表
@@ -714,7 +825,12 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `${context.dataset.label}: 功率=${context.parsed.x}kW, 效率=${context.parsed.y}%`;
+                                    let label = `${context.dataset.label}: 功率=${context.parsed.x}kW, 效率=${context.parsed.y}%`;
+                                    // 检查是否为最大效率点
+                                    if (context.dataset.label && context.dataset.label.includes('最大效率')) {
+                                        label += ' ⭐';
+                                    }
+                                    return label;
                                 }
                             }
                         }
@@ -764,6 +880,7 @@
             const fillArea = document.getElementById('fillArea').checked;
             const showPoints = document.getElementById('showPoints').checked;
             const referenceLine = parseFloat(document.getElementById('referenceLine').value);
+            const highlightMaxEfficiency = document.getElementById('highlightMaxEfficiency').checked;
             
             // 准备数据集
             const datasets = curves
@@ -802,6 +919,29 @@
                 }
             }
             
+            // 添加最大效率点高亮
+            if (highlightMaxEfficiency) {
+                curves.forEach(curve => {
+                    if (curve.visible && curve.data.length > 0) {
+                        const maxPoint = findMaxEfficiencyPoint(curve);
+                        if (maxPoint) {
+                            datasets.push({
+                                label: `${curve.label} - 最大效率`,
+                                data: [maxPoint],
+                                borderColor: '#FFD700',
+                                backgroundColor: curve.color,
+                                borderWidth: 3,
+                                pointRadius: 8,
+                                pointHoverRadius: 10,
+                                pointStyle: 'star',
+                                showLine: false,
+                                order: -1
+                            });
+                        }
+                    }
+                });
+            }
+            
             chart.data.datasets = datasets;
             
             // 更新标题和轴标签
@@ -835,6 +975,9 @@
             chart.options.scales.y.grid.color = borderColor;
             
             chart.update();
+            
+            // 更新最大效率汇总
+            renderMaxEfficiencySummary();
             
             // 自动保存到localStorage
             saveToLocalStorage();
@@ -925,6 +1068,7 @@
                     smoothCurves: document.getElementById('smoothCurves').checked,
                     fillArea: document.getElementById('fillArea').checked,
                     showPoints: document.getElementById('showPoints').checked,
+                    highlightMaxEfficiency: document.getElementById('highlightMaxEfficiency').checked,
                     referenceLine: document.getElementById('referenceLine').value
                 }
             };
@@ -945,6 +1089,7 @@
                 document.getElementById('smoothCurves').checked = config.settings.smoothCurves || false;
                 document.getElementById('fillArea').checked = config.settings.fillArea || false;
                 document.getElementById('showPoints').checked = config.settings.showPoints !== undefined ? config.settings.showPoints : true;
+                document.getElementById('highlightMaxEfficiency').checked = config.settings.highlightMaxEfficiency !== undefined ? config.settings.highlightMaxEfficiency : true;
                 document.getElementById('referenceLine').value = config.settings.referenceLine || '';
             }
             
