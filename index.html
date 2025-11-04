@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>功率-效率曲线分析工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #e8e8e8;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-color: #dddddd;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --input-bg: #ffffff;
+            --button-bg: #007bff;
+            --button-hover: #0056b3;
+            --button-text: #ffffff;
+            --danger-bg: #dc3545;
+            --danger-hover: #c82333;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3a3a3a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --border-color: #444444;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            --input-bg: #2d2d2d;
+            --button-bg: #0d6efd;
+            --button-hover: #0b5ed7;
+            --button-text: #ffffff;
+            --danger-bg: #dc3545;
+            --danger-hover: #bb2d3b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 {
+            color: var(--text-primary);
+            font-size: 28px;
+            margin: 0;
+        }
+
+        .theme-toggle {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--button-hover);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-primary);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .card h2 {
+            margin-bottom: 15px;
+            font-size: 20px;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 500px;
+            margin-bottom: 20px;
+        }
+
+        .settings-panel {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        .form-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .button {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .button:hover {
+            background: var(--button-hover);
+        }
+
+        .button-small {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        .button-danger {
+            background: var(--danger-bg);
+        }
+
+        .button-danger:hover {
+            background: var(--danger-hover);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .curve-item {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: var(--bg-secondary);
+        }
+
+        .curve-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .curve-header input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+
+        .curve-header input[type="text"] {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .curve-header input[type="color"] {
+            width: 50px;
+            height: 30px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 6px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+        }
+
+        .data-table td {
+            background: var(--input-bg);
+        }
+
+        .instructions {
+            background: var(--bg-primary);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 20px;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .collapsible::before {
+            content: "▼ ";
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+
+        .collapsible.collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+
+        .export-section {
+            background: var(--bg-secondary);
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .point-input {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 5px;
+            align-items: end;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>功率-效率曲线分析工具</h1>
+            <button class="theme-toggle" onclick="toggleTheme()">🌓 切换主题</button>
+        </div>
+
+        <div class="instructions">
+            <h3 class="collapsible" onclick="toggleCollapsible(this)">使用说明</h3>
+            <div class="collapsible-content">
+                <ul>
+                    <li><strong>多曲线管理：</strong>最多支持5条曲线，每条曲线可独立设置名称、颜色、显示/隐藏</li>
+                    <li><strong>数据输入：</strong>支持批量粘贴（格式：功率 效率，每行一组）或逐点添加</li>
+                    <li><strong>批量粘贴格式：</strong>支持空格、制表符或逗号分隔，如"10 95.5"或"10,95.5"</li>
+                    <li><strong>图表设置：</strong>可自定义标题、坐标轴标签、范围、平滑曲线、区域填充等</li>
+                    <li><strong>参考线：</strong>可添加效率参考线，如97.5%</li>
+                    <li><strong>导出功能：</strong>支持导出PNG、SVG图片及JSON配置文件</li>
+                    <li><strong>数据恢复：</strong>配置自动保存到本地，刷新页面后可恢复</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="chart-section">
+                <div class="card">
+                    <h2>功率-效率曲线图</h2>
+                    <div class="chart-container">
+                        <canvas id="powerEfficiencyChart"></canvas>
+                    </div>
+                    <div class="button-group">
+                        <button class="button" onclick="exportPNG()">📊 导出PNG</button>
+                        <button class="button" onclick="exportSVG()">📈 导出SVG</button>
+                        <button class="button" onclick="exportConfig()">💾 导出配置JSON</button>
+                        <div class="file-input-wrapper">
+                            <button class="button">📂 导入配置JSON</button>
+                            <input type="file" id="importConfig" accept=".json" onchange="importConfig(event)">
+                        </div>
+                        <button class="button" onclick="loadFromLocalStorage()">🔄 恢复上次配置</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>全局设置</h2>
+                    <div class="form-group">
+                        <label>图表主标题</label>
+                        <input type="text" id="chartTitle" value="功率-效率特性曲线" onchange="updateChart()">
+                    </div>
+                    <div class="form-group">
+                        <label>X轴标题</label>
+                        <input type="text" id="xAxisLabel" value="DC输入功率 (kW)" onchange="updateChart()">
+                    </div>
+                    <div class="form-group">
+                        <label>Y轴标题</label>
+                        <input type="text" id="yAxisLabel" value="效率 (%)" onchange="updateChart()">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>X轴最小值</label>
+                            <input type="number" id="xMin" placeholder="自动" onchange="updateChart()">
+                        </div>
+                        <div class="form-group">
+                            <label>X轴最大值</label>
+                            <input type="number" id="xMax" placeholder="自动" onchange="updateChart()">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Y轴最小值</label>
+                            <input type="number" id="yMin" value="0" onchange="updateChart()">
+                        </div>
+                        <div class="form-group">
+                            <label>Y轴最大值</label>
+                            <input type="number" id="yMax" value="100" onchange="updateChart()">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="smoothCurves" onchange="updateChart()">
+                            平滑曲线
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="fillArea" onchange="updateChart()">
+                            区域填充
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="showPoints" checked onchange="updateChart()">
+                            显示数据点
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>效率参考线 (%)</label>
+                        <input type="number" id="referenceLine" placeholder="例如: 97.5" step="0.1" onchange="updateChart()">
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-panel card">
+                <h2>曲线数据管理</h2>
+                <div id="curvesContainer"></div>
+                <button class="button" onclick="addCurve()" id="addCurveBtn">➕ 添加曲线</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据结构
+        let curves = [];
+        let chart = null;
+        const MAX_CURVES = 5;
+        const DEFAULT_COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'];
+
+        // 初始化
+        function init() {
+            // 尝试从localStorage加载
+            const saved = localStorage.getItem('powerEfficiencyConfig');
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    loadConfiguration(config);
+                    return;
+                } catch (e) {
+                    console.error('Failed to load from localStorage:', e);
+                }
+            }
+            
+            // 默认创建第一条曲线并填充示例数据
+            addCurve();
+            curves[0].label = '示例曲线';
+            curves[0].visible = true;
+            curves[0].data = [
+                { x: 10, y: 92.5 },
+                { x: 20, y: 95.2 },
+                { x: 30, y: 96.8 },
+                { x: 40, y: 97.5 },
+                { x: 50, y: 97.8 },
+                { x: 60, y: 97.9 },
+                { x: 70, y: 97.8 },
+                { x: 80, y: 97.5 },
+                { x: 90, y: 97.0 },
+                { x: 100, y: 96.2 }
+            ];
+            renderCurves();
+            initChart();
+        }
+
+        // 添加曲线
+        function addCurve() {
+            if (curves.length >= MAX_CURVES) {
+                alert(`最多只能添加${MAX_CURVES}条曲线`);
+                return;
+            }
+            
+            curves.push({
+                label: `曲线 ${curves.length + 1}`,
+                color: DEFAULT_COLORS[curves.length % DEFAULT_COLORS.length],
+                visible: false,
+                data: []
+            });
+            
+            renderCurves();
+            updateChart();
+        }
+
+        // 渲染曲线列表
+        function renderCurves() {
+            const container = document.getElementById('curvesContainer');
+            container.innerHTML = '';
+            
+            curves.forEach((curve, index) => {
+                const curveDiv = document.createElement('div');
+                curveDiv.className = 'curve-item';
+                curveDiv.innerHTML = `
+                    <div class="curve-header">
+                        <input type="checkbox" ${curve.visible ? 'checked' : ''} 
+                               onchange="toggleCurveVisibility(${index}, this.checked)">
+                        <input type="text" value="${curve.label}" 
+                               onchange="updateCurveLabel(${index}, this.value)">
+                        <input type="color" value="${curve.color}" 
+                               onchange="updateCurveColor(${index}, this.value)">
+                        <button class="button button-small button-danger" 
+                                onclick="removeCurve(${index})">删除</button>
+                    </div>
+                    
+                    <h4 class="collapsible" onclick="toggleCollapsible(this)">批量粘贴数据</h4>
+                    <div class="collapsible-content">
+                        <div class="form-group">
+                            <textarea rows="4" id="bulkData${index}" 
+                                      placeholder="每行输入：功率 效率&#10;例如：&#10;10 92.5&#10;20 95.2&#10;30 96.8"></textarea>
+                        </div>
+                        <button class="button button-small" onclick="parseBulkData(${index})">解析并添加</button>
+                    </div>
+                    
+                    <h4 class="collapsible" onclick="toggleCollapsible(this)">逐点添加</h4>
+                    <div class="collapsible-content">
+                        <div class="point-input">
+                            <div class="form-group">
+                                <label>功率 (kW)</label>
+                                <input type="number" id="power${index}" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label>效率 (%)</label>
+                                <input type="number" id="efficiency${index}" step="0.1">
+                            </div>
+                            <button class="button button-small" onclick="addPoint(${index})">添加点</button>
+                        </div>
+                    </div>
+                    
+                    <h4 class="collapsible" onclick="toggleCollapsible(this)">数据表 (${curve.data.length} 点)</h4>
+                    <div class="collapsible-content">
+                        ${renderDataTable(index, curve.data)}
+                        <button class="button button-small button-danger" 
+                                onclick="clearCurveData(${index})">清空数据</button>
+                    </div>
+                `;
+                container.appendChild(curveDiv);
+            });
+            
+            document.getElementById('addCurveBtn').style.display = 
+                curves.length >= MAX_CURVES ? 'none' : 'block';
+        }
+
+        // 渲染数据表
+        function renderDataTable(curveIndex, data) {
+            if (data.length === 0) {
+                return '<p style="color: var(--text-secondary); margin: 10px 0;">暂无数据</p>';
+            }
+            
+            let html = '<table class="data-table"><thead><tr><th>序号</th><th>功率(kW)</th><th>效率(%)</th><th>操作</th></tr></thead><tbody>';
+            data.forEach((point, pointIndex) => {
+                html += `<tr>
+                    <td>${pointIndex + 1}</td>
+                    <td>${point.x}</td>
+                    <td>${point.y}</td>
+                    <td><button class="button button-small button-danger" 
+                                onclick="removePoint(${curveIndex}, ${pointIndex})">删除</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // 解析批量数据
+        function parseBulkData(curveIndex) {
+            const textarea = document.getElementById(`bulkData${curveIndex}`);
+            const lines = textarea.value.split('\n');
+            let added = 0;
+            
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line || line.startsWith('#') || line.startsWith('//')) return;
+                
+                // 支持空格、制表符、逗号分隔
+                const parts = line.split(/[\s,]+/).filter(p => p);
+                if (parts.length >= 2) {
+                    const x = parseFloat(parts[0]);
+                    const y = parseFloat(parts[1]);
+                    if (!isNaN(x) && !isNaN(y)) {
+                        curves[curveIndex].data.push({ x, y });
+                        added++;
+                    }
+                }
+            });
+            
+            // 按x排序
+            curves[curveIndex].data.sort((a, b) => a.x - b.x);
+            
+            textarea.value = '';
+            alert(`成功添加 ${added} 个数据点`);
+            renderCurves();
+            updateChart();
+        }
+
+        // 添加单个数据点
+        function addPoint(curveIndex) {
+            const power = parseFloat(document.getElementById(`power${curveIndex}`).value);
+            const efficiency = parseFloat(document.getElementById(`efficiency${curveIndex}`).value);
+            
+            if (isNaN(power) || isNaN(efficiency)) {
+                alert('请输入有效的数值');
+                return;
+            }
+            
+            curves[curveIndex].data.push({ x: power, y: efficiency });
+            curves[curveIndex].data.sort((a, b) => a.x - b.x);
+            
+            document.getElementById(`power${curveIndex}`).value = '';
+            document.getElementById(`efficiency${curveIndex}`).value = '';
+            
+            renderCurves();
+            updateChart();
+        }
+
+        // 删除数据点
+        function removePoint(curveIndex, pointIndex) {
+            curves[curveIndex].data.splice(pointIndex, 1);
+            renderCurves();
+            updateChart();
+        }
+
+        // 清空曲线数据
+        function clearCurveData(curveIndex) {
+            if (confirm('确定要清空该曲线的所有数据吗？')) {
+                curves[curveIndex].data = [];
+                renderCurves();
+                updateChart();
+            }
+        }
+
+        // 删除曲线
+        function removeCurve(index) {
+            if (confirm('确定要删除该曲线吗？')) {
+                curves.splice(index, 1);
+                renderCurves();
+                updateChart();
+            }
+        }
+
+        // 更新曲线属性
+        function toggleCurveVisibility(index, visible) {
+            curves[index].visible = visible;
+            updateChart();
+        }
+
+        function updateCurveLabel(index, label) {
+            curves[index].label = label;
+            updateChart();
+        }
+
+        function updateCurveColor(index, color) {
+            curves[index].color = color;
+            updateChart();
+        }
+
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('powerEfficiencyChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '功率-效率特性曲线',
+                            font: { size: 18 },
+                            color: getComputedStyle(document.body).getPropertyValue('--text-primary')
+                        },
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: getComputedStyle(document.body).getPropertyValue('--text-primary')
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: 功率=${context.parsed.x}kW, 效率=${context.parsed.y}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'DC输入功率 (kW)',
+                                color: getComputedStyle(document.body).getPropertyValue('--text-primary')
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
+                            },
+                            grid: {
+                                color: getComputedStyle(document.body).getPropertyValue('--border-color')
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '效率 (%)',
+                                color: getComputedStyle(document.body).getPropertyValue('--text-primary')
+                            },
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
+                            },
+                            grid: {
+                                color: getComputedStyle(document.body).getPropertyValue('--border-color')
+                            }
+                        }
+                    }
+                }
+            });
+            
+            updateChart();
+        }
+
+        // 更新图表
+        function updateChart() {
+            if (!chart) return;
+            
+            const smoothCurves = document.getElementById('smoothCurves').checked;
+            const fillArea = document.getElementById('fillArea').checked;
+            const showPoints = document.getElementById('showPoints').checked;
+            const referenceLine = parseFloat(document.getElementById('referenceLine').value);
+            
+            // 准备数据集
+            const datasets = curves
+                .filter(curve => curve.visible)
+                .map(curve => ({
+                    label: curve.label,
+                    data: curve.data,
+                    borderColor: curve.color,
+                    backgroundColor: fillArea ? curve.color + '40' : curve.color,
+                    fill: fillArea,
+                    tension: smoothCurves ? 0.4 : 0,
+                    cubicInterpolationMode: smoothCurves ? 'monotone' : 'default',
+                    pointRadius: showPoints ? 4 : 0,
+                    pointHoverRadius: 6
+                }));
+            
+            // 添加参考线
+            if (!isNaN(referenceLine)) {
+                const xValues = curves
+                    .filter(c => c.visible && c.data.length > 0)
+                    .flatMap(c => c.data.map(d => d.x));
+                
+                if (xValues.length > 0) {
+                    const minX = Math.min(...xValues);
+                    const maxX = Math.max(...xValues);
+                    
+                    datasets.push({
+                        label: `参考线 ${referenceLine}%`,
+                        data: [{ x: minX, y: referenceLine }, { x: maxX, y: referenceLine }],
+                        borderColor: '#FF0000',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0
+                    });
+                }
+            }
+            
+            chart.data.datasets = datasets;
+            
+            // 更新标题和轴标签
+            chart.options.plugins.title.text = document.getElementById('chartTitle').value;
+            chart.options.scales.x.title.text = document.getElementById('xAxisLabel').value;
+            chart.options.scales.y.title.text = document.getElementById('yAxisLabel').value;
+            
+            // 更新轴范围
+            const xMin = document.getElementById('xMin').value;
+            const xMax = document.getElementById('xMax').value;
+            const yMin = document.getElementById('yMin').value;
+            const yMax = document.getElementById('yMax').value;
+            
+            chart.options.scales.x.min = xMin ? parseFloat(xMin) : undefined;
+            chart.options.scales.x.max = xMax ? parseFloat(xMax) : undefined;
+            chart.options.scales.y.min = yMin ? parseFloat(yMin) : undefined;
+            chart.options.scales.y.max = yMax ? parseFloat(yMax) : undefined;
+            
+            // 更新颜色（主题切换）
+            const textColor = getComputedStyle(document.body).getPropertyValue('--text-primary').trim();
+            const secondaryColor = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim();
+            const borderColor = getComputedStyle(document.body).getPropertyValue('--border-color').trim();
+            
+            chart.options.plugins.title.color = textColor;
+            chart.options.plugins.legend.labels.color = textColor;
+            chart.options.scales.x.title.color = textColor;
+            chart.options.scales.y.title.color = textColor;
+            chart.options.scales.x.ticks.color = secondaryColor;
+            chart.options.scales.y.ticks.color = secondaryColor;
+            chart.options.scales.x.grid.color = borderColor;
+            chart.options.scales.y.grid.color = borderColor;
+            
+            chart.update();
+            
+            // 自动保存到localStorage
+            saveToLocalStorage();
+        }
+
+        // 导出PNG
+        function exportPNG() {
+            const link = document.createElement('a');
+            link.download = 'power-efficiency-curve.png';
+            link.href = chart.toBase64Image();
+            link.click();
+        }
+
+        // 导出SVG
+        function exportSVG() {
+            const canvas = document.getElementById('powerEfficiencyChart');
+            const ctx = canvas.getContext('2d');
+            
+            // 创建SVG
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("width", canvas.width);
+            svg.setAttribute("height", canvas.height);
+            svg.setAttribute("xmlns", svgNS);
+            
+            // 嵌入图像
+            const image = document.createElementNS(svgNS, "image");
+            image.setAttribute("width", canvas.width);
+            image.setAttribute("height", canvas.height);
+            image.setAttributeNS("http://www.w3.org/1999/xlink", "href", canvas.toDataURL("image/png"));
+            svg.appendChild(image);
+            
+            // 下载
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+            const svgUrl = URL.createObjectURL(svgBlob);
+            const link = document.createElement("a");
+            link.href = svgUrl;
+            link.download = "power-efficiency-curve.svg";
+            link.click();
+            URL.revokeObjectURL(svgUrl);
+        }
+
+        // 导出配置
+        function exportConfig() {
+            const config = getCurrentConfiguration();
+            const json = JSON.stringify(config, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'power-efficiency-config.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 导入配置
+        function importConfig(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const config = JSON.parse(e.target.result);
+                    loadConfiguration(config);
+                    alert('配置导入成功！');
+                } catch (error) {
+                    alert('配置文件格式错误：' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // 获取当前配置
+        function getCurrentConfiguration() {
+            return {
+                curves: curves,
+                settings: {
+                    title: document.getElementById('chartTitle').value,
+                    xAxisLabel: document.getElementById('xAxisLabel').value,
+                    yAxisLabel: document.getElementById('yAxisLabel').value,
+                    xMin: document.getElementById('xMin').value,
+                    xMax: document.getElementById('xMax').value,
+                    yMin: document.getElementById('yMin').value,
+                    yMax: document.getElementById('yMax').value,
+                    smoothCurves: document.getElementById('smoothCurves').checked,
+                    fillArea: document.getElementById('fillArea').checked,
+                    showPoints: document.getElementById('showPoints').checked,
+                    referenceLine: document.getElementById('referenceLine').value
+                }
+            };
+        }
+
+        // 加载配置
+        function loadConfiguration(config) {
+            curves = config.curves || [];
+            
+            if (config.settings) {
+                document.getElementById('chartTitle').value = config.settings.title || '功率-效率特性曲线';
+                document.getElementById('xAxisLabel').value = config.settings.xAxisLabel || 'DC输入功率 (kW)';
+                document.getElementById('yAxisLabel').value = config.settings.yAxisLabel || '效率 (%)';
+                document.getElementById('xMin').value = config.settings.xMin || '';
+                document.getElementById('xMax').value = config.settings.xMax || '';
+                document.getElementById('yMin').value = config.settings.yMin || '0';
+                document.getElementById('yMax').value = config.settings.yMax || '100';
+                document.getElementById('smoothCurves').checked = config.settings.smoothCurves || false;
+                document.getElementById('fillArea').checked = config.settings.fillArea || false;
+                document.getElementById('showPoints').checked = config.settings.showPoints !== undefined ? config.settings.showPoints : true;
+                document.getElementById('referenceLine').value = config.settings.referenceLine || '';
+            }
+            
+            renderCurves();
+            if (!chart) {
+                initChart();
+            } else {
+                updateChart();
+            }
+        }
+
+        // 保存到localStorage
+        function saveToLocalStorage() {
+            try {
+                const config = getCurrentConfiguration();
+                localStorage.setItem('powerEfficiencyConfig', JSON.stringify(config));
+            } catch (e) {
+                console.error('Failed to save to localStorage:', e);
+            }
+        }
+
+        // 从localStorage加载
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('powerEfficiencyConfig');
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    loadConfiguration(config);
+                    alert('配置恢复成功！');
+                } catch (e) {
+                    alert('配置恢复失败：' + e.message);
+                }
+            } else {
+                alert('没有找到保存的配置');
+            }
+        }
+
+        // 主题切换
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // 更新图表颜色
+            if (chart) {
+                updateChart();
+            }
+        }
+
+        // 折叠功能
+        function toggleCollapsible(element) {
+            element.classList.toggle('collapsed');
+            const content = element.nextElementSibling;
+            if (content && content.classList.contains('collapsible-content')) {
+                content.classList.toggle('collapsed');
+            }
+        }
+
+        // 初始化主题
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+            init();
+        });
+    </script>
+</body>
+</html>
